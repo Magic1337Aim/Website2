@@ -3,7 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-  <title>Chrombook Helfer Bot – v4</title>
+  <title>Chrombook Helfer Bot – v7 (Live Support Chat)</title>
+  <!-- Firebase (compat) CDN – works on GitHub Pages -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
   <style>
     :root{
       --bg:#0b0f19; --panel:#121a2a; --panel2:#0f1726; --border:#20304e; --text:#e9eef7; --muted:#a3b0c7;
@@ -11,7 +15,7 @@
     }
     *{ box-sizing:border-box; }
     html,body{ height:100%; margin:0; background: radial-gradient(1200px 800px at 10% -10%, #1b2440 0%, transparent 60%), var(--bg); color:var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif; }
-    .app{ max-width:900px; margin-inline:auto; display:flex; flex-direction:column; min-height:100dvh; padding:12px; }
+    .app{ max-width:980px; margin-inline:auto; display:flex; flex-direction:column; min-height:100dvh; padding:12px; }
     header{ position:sticky; top:0; z-index:5; background: linear-gradient(135deg, rgba(109,124,255,.25), rgba(0,212,255,.12)), var(--panel); border:1px solid var(--border); border-radius:14px; padding:8px 10px; }
     .row{ display:flex; align-items:center; gap:10px; }
     .sp{ flex:1; }
@@ -21,26 +25,32 @@
     button{ font:inherit; color:var(--text); background: linear-gradient(180deg,#1b2440,#121a2a); border:1px solid var(--border); padding:10px 14px; border-radius:12px; cursor:pointer; }
     button:hover{ filter:brightness(1.06); }
     .ghost{ background:transparent; border-color:var(--border); }
-    .chip{ display:inline-block; padding:6px 10px; border:1px solid var(--border); border-radius:999px; font-size:12px; cursor:pointer; margin:4px 6px 0 0; }
     .cards{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-top:10px; }
     @media (min-width:680px){ .cards{ grid-template-columns:repeat(4,1fr); } }
     .card{ border:1px solid var(--border); background: linear-gradient(180deg,var(--panel),var(--panel2)); border-radius:16px; padding:12px; }
     .card h4{ margin:0 0 6px; font-size:14px; color:#c9d7ff; }
     .card p{ margin:0 0 8px; font-size:13px; color:var(--muted); }
-    .chat{ margin-top:10px; border:1px solid var(--border); border-radius:16px; background: linear-gradient(180deg,#0e152b,#0b1120); padding:12px; display:flex; flex-direction:column; gap:10px; min-height:44dvh; }
+    .chatWrap{ margin-top:10px; border:1px solid var(--border); border-radius:16px; background: linear-gradient(180deg,#0e152b,#0b1120); }
+    .chatTabs{ display:flex; gap:8px; padding:8px; border-bottom:1px solid var(--border); }
+    .tab{ padding:8px 12px; border-radius:999px; border:1px solid var(--border); background:linear-gradient(180deg,#121a2a,#0f1726); cursor:pointer; font-size:14px; }
+    .tab.active{ outline:2px solid rgba(109,124,255,.5); }
+    .modeInfo{ margin-left:auto; font-size:12px; color:var(--muted); display:flex; align-items:center; gap:8px; }
+    .dot{ width:8px; height:8px; border-radius:50%; background:#666; display:inline-block; }
+    .dot.live{ background:#3ddc97; box-shadow:0 0 0 4px rgba(61,220,151,.12); }
+    .chat{ padding:12px; display:flex; flex-direction:column; gap:10px; min-height:44dvh; }
     .msg{ display:flex; gap:8px; align-items:flex-start; }
     .msg .bubble{ background: linear-gradient(180deg,#121a2a,#0f1726); border:1px solid var(--border); border-radius:12px; padding:10px 12px; font-size:14px; line-height:1.4; white-space:pre-wrap; }
     .msg.user .bubble{ background: linear-gradient(180deg,#0f1524,#0a0f19); }
     .avatar{ width:30px; height:30px; border-radius:50%; display:grid; place-items:center; background: radial-gradient(circle at 35% 35%, #9bb3ff, #6d7cff 40%, #0b0f19 70%); border:1px solid rgba(255,255,255,.12); }
-    .composer{ position:sticky; bottom:0; margin-top:10px; display:flex; gap:8px; border:1px solid var(--border); border-radius:12px; padding:8px; background: linear-gradient(180deg,#0b1120,#0b1120); }
-    .composer input{ flex:1; border:1px solid var(--border); border-radius:10px; padding:12px 12px; background:#0b1120; color:var(--text); }
-    .toast{ position:fixed; left:50%; transform:translateX(-50%); bottom:14px; background: rgba(0,0,0,.6); border:1px solid var(--border); padding:10px 12px; border-radius:12px; z-index:30; }
+    .composer{ position:sticky; bottom:0; display:flex; gap:8px; border-top:1px solid var(--border); padding:8px; background: linear-gradient(180deg,#0b1120,#0b1120); border-radius:0 0 16px 16px; }
+    .composer input{ flex:1; border:1px solid var(--border); border-radius:10px; padding:12px 12px; background:#0b1120; color:#e9eef7; }
+    .toast{ position:fixed; left:50%; transform:translateX(-50%); bottom:14px; background: rgba(0,0,0,.6); border:1px solid var(--border); padding:10px 12px; border-radius:12px; z-index:40; }
     .fab{ position:fixed; right:16px; bottom:84px; width:56px; height:56px; border-radius:50%; display:grid; place-items:center; background: linear-gradient(135deg, rgba(109,124,255,.85), rgba(0,212,255,.65)); border:1px solid rgba(255,255,255,.18); z-index:15; }
     .badge{ position:absolute; top:-6px; right:-6px; min-width:18px; height:18px; padding:0 5px; display:grid; place-items:center; background: var(--danger); color:white; border-radius:999px; font-size:11px; font-weight:700; border:1px solid rgba(255,255,255,.35); }
     /* Modals */
     .modal-backdrop{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; padding:16px; background: rgba(0,0,0,.55); z-index:20; }
     .modal{ width:min(780px,96vw); background: linear-gradient(180deg,var(--panel),var(--panel2)); border:1px solid var(--border); border-radius:16px; padding:14px; }
-    .modal input, .modal textarea{ width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:#0b1120; color:var(--text); }
+    .modal input, .modal textarea{ width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:#0b1120; color:#e9eef7; }
     .rowbtn{ display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
     .hidden{ display:none !important; }
     .meta{ font-size:12px; color:var(--muted); }
@@ -85,16 +95,23 @@
       <div class="card"><h4>🛍️ Apps</h4><p>Play-Store & PWAs.</p><button data-intent="apps">Apps & Spiele</button></div>
     </section>
 
-    <section class="chat" id="chat" aria-live="polite" aria-label="Chatverlauf"></section>
-
-    <form class="composer" id="composer" autocomplete="off">
-      <input id="input" type="text" placeholder="Frag mich etwas … (z. B. „Wie installiere ich Linux?“) ✨" autofocus />
-      <button id="send" type="submit">Senden ▶</button>
-    </form>
+    <section class="chatWrap">
+      <div class="chatTabs">
+        <button class="tab" id="tabBot">🤖 Bot</button>
+        <button class="tab" id="tabStaff">👨‍💻 Mitarbeiter</button>
+        <div class="modeInfo"><span class="dot" id="liveDot"></span><span id="modeLabel">Offline</span></div>
+      </div>
+      <section class="chat" id="chat" aria-live="polite" aria-label="Chatverlauf"></section>
+      <form class="composer" id="composer" autocomplete="off">
+        <input id="input" type="text" placeholder="Nachricht schreiben …" />
+        <button id="send" type="submit">Senden ▶</button>
+      </form>
+    </section>
   </div>
 
-  <div class="fab" id="fab" title="Mitarbeiter kontaktieren">
-    ✉️ <span class="badge hidden" id="badge">0</span>
+  <!-- FAB: Chat-Center (Staff-only) -->
+  <div class="fab hidden" id="fab" title="Chat-Center (Mitarbeiter)">
+    💬 <span class="badge hidden" id="badge">0</span>
   </div>
 
   <!-- Kontakt -->
@@ -113,7 +130,7 @@
   <!-- Tickets (Staff) -->
   <div class="modal-backdrop hidden" id="ticketsModal">
     <div class="modal">
-      <h3>📨 Anfragen <span class="meta" id="openCount">(0 offen)</span></h3>
+      <h3>💬 Chat-Center <span class="meta" id="openCount">(0 offen)</span></h3>
       <div id="ticketsList"></div>
       <div class="rowbtn">
         <button id="closeTickets" type="button">Schließen</button>
@@ -124,21 +141,12 @@
   <!-- Reply (Staff) -->
   <div class="modal-backdrop hidden" id="replyModal">
     <div class="modal">
-      <h3>💬 Ticket <span class="meta" id="replyTicketId"></span></h3>
+      <h3>Thread <span class="meta" id="replyTicketId"></span></h3>
       <div class="thread" id="thread"></div>
-      <div style="margin-top:8px;">
-        <div class="meta">Antwortvorlagen</div>
-        <div id="templates">
-          <span class="chip" data-tpl="Danke für deine Nachricht! Wir prüfen das und melden uns. 🙌">Standard</span>
-          <span class="chip" data-tpl="Kannst du mir bitte noch ein paar Details nennen (Fehlermeldung, Schritte)? 🔎">Mehr Details</span>
-          <span class="chip" data-tpl="Bitte einmal Browser neu starten und erneut testen. ⚙️">Neustart</span>
-          <span class="chip" data-tpl="Alles klar! Das haben wir behoben. ✅">Behoben</span>
-        </div>
-      </div>
       <textarea id="replyText" rows="3" placeholder="Antwort schreiben …"></textarea>
       <div class="rowbtn">
         <button id="replyBack" type="button">Zurück</button>
-        <button id="replyResolve" type="button">Als erledigt markieren</button>
+        <button id="replyResolve" type="button">Als erledigt</button>
         <button id="sendReply" type="button">Antwort senden</button>
       </div>
     </div>
@@ -170,6 +178,16 @@
 
   <script>
   document.addEventListener('DOMContentLoaded', function(){
+    // Firebase config (provided by you)
+    const firebaseConfig = {
+      apiKey: "AIzaSyDN1MZv_q38Zoymt92BHWTe9sUNwteT1KA",
+      authDomain: "sample-firebase-ai-app-b02a4.firebaseapp.com",
+      projectId: "sample-firebase-ai-app-b02a4",
+      storageBucket: "sample-firebase-ai-app-b02a4.firebasestorage.app",
+      messagingSenderId: "382050648468",
+      appId: "1:382050648468:web:8c6f34051a7b2991ebcf81"
+    };
+
     // Helpers
     const $ = (s, r=document)=> r.querySelector(s);
     const $$ = (s, r=document)=> Array.from(r.querySelectorAll(s));
@@ -183,15 +201,18 @@
     const deviceId = load('cbh_device') || (save('cbh_device','dev-'+uid()), load('cbh_device'));
 
     // State
-    let chat = load('cbh_chat', []);
-    let tickets = load('cbh_tickets', []);
+    const liveDot = $('#liveDot'), modeLabel = $('#modeLabel');
+    let botChat = load('cbh_bot_chat', []);
+    let tickets = [];           // from Firestore or local
     let staff = sessionStorage.getItem('cbh_staff')==='1';
-    let activeTicketId = null;
+    let activeTicketId = load('cbh_active_ticket', null);
+    let mode = load('cbh_mode', 'bot'); // 'bot' | 'staff'
 
     // DOM
-    const chatEl = $('#chat'), input = $('#input'), composer = $('#composer');
+    const chatEl = $('#chat'), input = $('#input');
     const cards = $('#cards');
-    const contactBtn = $('#contactBtn'), fab = $('#fab'), badge = $('#badge');
+    const contactBtn = $('#contactBtn'), badge = $('#badge');
+    const fab = $('#fab');
     const contactModal = $('#contactModal'), contactMsg = $('#contactMsg');
     const ticketsModal = $('#ticketsModal'), ticketsList = $('#ticketsList'), openCount = $('#openCount');
     const closeTicketsBtn = $('#closeTickets');
@@ -200,11 +221,25 @@
     const loginModal = $('#loginModal'), code1 = $('#code1'), email = $('#email'), code2 = $('#code2');
     const next1=$('#next1'), next2=$('#next2'), finishLogin=$('#finishLogin'), cancelLogin=$('#cancelLogin'), back1=$('#back1'), back2=$('#back2');
     const logo = $('#logo'), logoutBtn = $('#logoutBtn');
+    const tabBot = $('#tabBot'), tabStaff = $('#tabStaff');
 
-    // Render chat
-    function renderChat(){
+    // Firebase
+    const FB = { enabled:false, app:null, db:null, auth:null, unsub:null };
+    try{
+      FB.app = firebase.initializeApp(firebaseConfig);
+      FB.auth = firebase.auth();
+      FB.db = firebase.firestore();
+      FB.auth.signInAnonymously().then(()=>{
+        FB.enabled = true;
+        liveDot.classList.add('live'); modeLabel.textContent='Live';
+        subscribeTickets();
+      }).catch(e=>{ console.error(e); modeLabel.textContent='Offline'; });
+    }catch(e){ console.error('Firebase init failed', e); modeLabel.textContent='Offline'; }
+
+    // Rendering
+    function renderBotChat(){
       chatEl.innerHTML = '';
-      for(const m of chat){
+      for(const m of botChat){
         const wrap = document.createElement('div');
         wrap.className = 'msg ' + (m.role==='user'?'user':'bot');
         const avatar = document.createElement('div'); avatar.className='avatar'; avatar.textContent = m.role==='user'?'👤':'🤖';
@@ -214,11 +249,46 @@
         wrap.appendChild(avatar); wrap.appendChild(col); chatEl.appendChild(wrap);
       }
       chatEl.scrollTop = chatEl.scrollHeight;
-      save('cbh_chat', chat);
+      save('cbh_bot_chat', botChat);
     }
-    function pushMsg(role,text){ chat.push({role,text,time:Date.now(),id:uid(),device:deviceId}); renderChat(); }
+    function renderStaffChat(){
+      chatEl.innerHTML = '';
+      let t = tickets.find(x=>x.id===activeTicketId);
+      if(!t){
+        // fallback: pick most recent by this device
+        const my = tickets.filter(x=>x.from===deviceId).sort((a,b)=> (b.time||0)-(a.time||0));
+        if(my[0]){ activeTicketId = my[0].id; save('cbh_active_ticket', activeTicketId); t = my[0]; }
+      }
+      if(!t){
+        chatEl.innerHTML = '<div class="meta">Kein aktiver Mitarbeiter-Chat. Starte einen Kontakt oben über „Kontakt • Mitarbeiter“.</div>';
+        return;
+      }
+      // Header line
+      const hdr = document.createElement('div');
+      hdr.className = 'meta';
+      hdr.textContent = 'Chat mit Mitarbeiter • Ticket ' + t.id + (t.status==='erledigt'?' (erledigt)':'');
+      chatEl.appendChild(hdr);
+      // Messages
+      const msgs = Array.isArray(t.messages)? t.messages : [];
+      for(const m of msgs){
+        const wrap = document.createElement('div');
+        wrap.className = 'msg ' + (m.by==='user'?'user':'bot');
+        const avatar = document.createElement('div'); avatar.className='avatar'; avatar.textContent = m.by==='user'?'👤':'👨‍💻';
+        const bubble = document.createElement('div'); bubble.className='bubble'; bubble.textContent = m.text;
+        const meta = document.createElement('div'); meta.className='meta'; meta.textContent = (m.by==='user'?'Du':'Mitarbeiter')+' • '+fmt(m.time);
+        const col = document.createElement('div'); col.appendChild(bubble); col.appendChild(meta);
+        wrap.appendChild(avatar); wrap.appendChild(col); chatEl.appendChild(wrap);
+      }
+      chatEl.scrollTop = chatEl.scrollHeight;
+    }
+    function renderChat(){
+      tabBot.classList.toggle('active', mode==='bot');
+      tabStaff.classList.toggle('active', mode==='staff');
+      if(mode==='bot') renderBotChat(); else renderStaffChat();
+      save('cbh_mode', mode);
+    }
 
-    // Knowledge base (compact)
+    // KB for bot
     const KB = [
       {p:['hallo','hi','hey','moin','grüß'], r:'Hey! 👋 Ich bin dein Chrombook-Helfer. Frag mich alles zu Chromebook, Linux, Apps & Leistung. ✨'},
       {p:['tasten','shortcut','kürzel','kombination'], r:'⌨️ Shortcuts:\n• Screenshot: Strg+▢||\n• Bereich: Strg+Umschalt+▢||\n• Tab neu/schließen: Strg+T / Strg+W\n• Task-Manager: Such + Esc 🙂'},
@@ -226,147 +296,192 @@
       {p:['langsam','leistung','ruckelt','lag'], r:'⚡ Schneller machen: Tabs/Erweiterungen prüfen, Speicher aufräumen, Hardwarebeschleunigung aktivieren (Chrome → System), Neustart/Powerwash als letzter Schritt.'},
       {p:['apps','play','android'], r:'📱 Apps: Einstellungen → Apps → Play-Store aktivieren → im Store installieren. Viele Dienste auch als PWA verfügbar. 🛍️'},
       {p:['druck','drucker','pdf'], r:'🖨️ Drucken/PDF: Druck-Dialog → „Als PDF speichern“ oder Drucker unter Einstellungen → „Drucker“ hinzufügen. 📄'},
-      {p:['hilfe','mitarbeiter','kontakt'], r:'🤝 Wenn du persönliche Hilfe brauchst: „Kontakt • Mitarbeiter“ anklicken oder ✉️ unten – wir melden uns!'},
+      {p:['hilfe','mitarbeiter','kontakt'], r:'🤝 Wenn du persönliche Hilfe brauchst: Wechsel oben auf „👨‍💻 Mitarbeiter“ oder nutze „Kontakt • Mitarbeiter“. Wir sind da!'},
     ];
-    function answer(q){
+    function botAnswer(q){
       const s = (q||'').toLowerCase();
-      for(const e of KB){
-        if(e.p.some(x=>s.includes(x))) return e.r + ' ✨';
-      }
-      return 'Ich bin mir nicht sicher. 🤔➡️ Ich verweise dich an einen Mitarbeiter. Bitte „Kontakt • Mitarbeiter“ anklicken. 🙌';
+      for(const e of KB){ if(e.p.some(x=>s.includes(x))) return e.r + ' ✨'; }
+      return 'Ich bin mir nicht sicher. 🤔➡️ Ich verweise dich an einen Mitarbeiter. Wechsle auf „👨‍💻 Mitarbeiter“. 🙌';
     }
 
-    // Send flow
-    $('#composer').addEventListener('submit', (ev)=>{
+    // Tickets helpers
+    function normalizeDoc(docId, d){
+      const messages = Array.isArray(d.messages) ? d.messages.slice() : [];
+      // Migrate legacy: initial message + replies -> messages
+      if(messages.length===0){
+        if(d.message){ messages.push({by:'user', text:d.message, time: d.time || Date.now()}); }
+        if(Array.isArray(d.replies)){ for(const r of d.replies){ messages.push({by:'staff', text:r.text, time:r.time || Date.now()}); } }
+      }
+      return {
+        id: docId, from: d.from, time: d.time || 0, status: d.status || 'offen',
+        message: d.message || (messages[0]?.text || ''),
+        messages
+      };
+    }
+
+    async function createTicket(message){
+      // create Firestore ticket with messages array
+      const ref = await FB.db.collection('cbh_tickets').add({
+        from: deviceId,
+        message,
+        time: Date.now(),
+        status: 'offen',
+        messages: [{ by:'user', text: message, time: Date.now() }]
+      });
+      activeTicketId = ref.id; save('cbh_active_ticket', activeTicketId);
+      mode = 'staff'; renderChat();
+      toast('Ticket erstellt und Mitarbeiter-Chat geöffnet ✅');
+    }
+    async function sendToStaff(text){
+      if(!activeTicketId){ await createTicket(text); return; }
+      await FB.db.collection('cbh_tickets').doc(activeTicketId).update({
+        messages: firebase.firestore.FieldValue.arrayUnion({ by:'user', text, time: Date.now() })
+      });
+    }
+
+    // Composer
+    $('#composer').addEventListener('submit', async (ev)=>{
       ev.preventDefault();
-      const val = (input.value||'').trim();
-      if(!val) return;
-      // secret command fallback
+      const val = (input.value||'').trim(); if(!val) return;
       if(val === '/login'){ openLogin(); input.value=''; return; }
-      pushMsg('user', val);
-      pushMsg('bot', 'Denke nach …');
-      setTimeout(()=>{ chat.pop(); pushMsg('bot', answer(val)); }, 200);
+      if(mode==='bot'){
+        botChat.push({role:'user', text: val, time: Date.now()});
+        renderBotChat();
+        setTimeout(()=>{
+          botChat.push({role:'bot', text: botAnswer(val), time: Date.now()});
+          renderBotChat();
+        }, 150);
+      }else{
+        if(!FB.enabled){ toast('Live-Chat offline. Bitte Internet prüfen.'); input.value=''; return; }
+        await sendToStaff(val);
+      }
       input.value='';
     });
 
-    // Cards → prefill
+    // Tabs
+    tabBot.addEventListener('click', ()=>{ mode='bot'; renderChat(); });
+    tabStaff.addEventListener('click', ()=>{ mode='staff'; renderChat(); });
+
+    // Cards → prefill to bot
     $('#cards').addEventListener('click', (e)=>{
       const b = e.target.closest('button[data-intent]'); if(!b) return;
       const m = {shortcuts:'Welche Tastenkürzel gibt es?', speed:'Mein Chromebook ist langsam. Was tun?', linux:'Wie installiere ich Linux (Crostini)?', apps:'Wie installiere ich Apps?'}[b.dataset.intent];
-      if(m){ pushMsg('user', m); setTimeout(()=> pushMsg('bot', answer(m)), 200); }
+      if(m){ botChat.push({role:'user', text:m, time:Date.now()}); setTimeout(()=>{ botChat.push({role:'bot', text: botAnswer(m), time: Date.now()}); renderBotChat(); }, 150); renderBotChat(); }
     });
 
-    // Contact flow (local tickets + badge)
+    // Contact flow
     function openContact(){ show(contactModal); $('#contactMsg').focus(); }
     function closeContact(){ hide(contactModal); }
-    function updateBadge(){
-      const c = tickets.filter(t=>t.status==='offen').length;
-      if(c>0){ badge.textContent=String(c); show(badge);} else hide(badge);
-      if(staff){ contactBtn.textContent = 'Anfragen ('+c+')'; contactBtn.title = 'Anfragen anzeigen'; }
-      else     { contactBtn.textContent = 'Kontakt • Mitarbeiter'; contactBtn.title = 'Mitarbeiter kontaktieren'; }
-      openCount.textContent = '('+c+' offen)';
-    }
-    async function createTicket(message){
-      const t = {id:'tkt-'+uid(), from:deviceId, message:message||'(kein Text)', time:Date.now(), status:'offen', replies:[]};
-      tickets.unshift(t); save('cbh_tickets', tickets); updateBadge(); toast('Anfrage gesendet ✅');
-    }
-    $('#contactBtn').addEventListener('click', ()=>{ if(staff){ openTickets(); } else openContact(); });
-    $('#fab').addEventListener('click', ()=>{ if(staff){ openTickets(); } else openContact(); });
+    contactBtn.addEventListener('click', ()=>{ if(staff) openTickets(); else openContact(); });
     $('#cancelContact').addEventListener('click', closeContact);
     $('#sendContact').addEventListener('click', async ()=>{
       const msg = (contactMsg.value||'').trim(); if(!msg){ toast('Bitte Nachricht eingeben.'); return; }
-      await createTicket(msg); contactMsg.value=''; closeContact();
+      if(!FB.enabled){ toast('Live-Chat offline. Bitte Internet prüfen.'); return; }
+      await createTicket(msg);
+      contactMsg.value=''; closeContact();
+      mode='staff'; renderChat();
     });
 
-    // Tickets modal (staff)
+    // Staff Chat-Center
     function openTickets(){ renderTickets(); show(ticketsModal); }
     function closeTicketsModal(){ hide(ticketsModal); }
     $('#closeTickets').addEventListener('click', closeTicketsModal);
-    $('#ticketsList').addEventListener('click', (e)=>{
+    $('#ticketsList').addEventListener('click', async (e)=>{
       const btn = e.target.closest('button[data-act]'); if(!btn) return;
       const id = btn.dataset.id; const act = btn.dataset.act;
-      const i = tickets.findIndex(t=>t.id===id); if(i<0) return;
-      if(act==='resolve'){ tickets[i].status='erledigt'; save('cbh_tickets', tickets); renderTickets(); updateBadge(); }
-      if(act==='delete'){ tickets.splice(i,1); save('cbh_tickets', tickets); renderTickets(); updateBadge(); }
-      if(act==='reply'){ activeTicketId = id; openReply(id); }
+      if(act==='resolve'){ await FB.db.collection('cbh_tickets').doc(id).update({status:'erledigt'}); }
+      if(act==='delete'){ await FB.db.collection('cbh_tickets').doc(id).delete(); }
+      if(act==='reply'){ activeTicketId = id; save('cbh_active_ticket', id); openReply(id); }
     });
     function renderTickets(){
       ticketsList.innerHTML = '';
       if(tickets.length===0){ ticketsList.innerHTML = '<p class="meta">Keine Anfragen vorhanden.</p>'; return; }
       for(const t of tickets){
-        const last = (t.replies && t.replies[0]) ? ' • Letzte Antwort: '+fmt(t.replies[0].time) : '';
+        const lastMsg = (t.messages && t.messages.length) ? t.messages[t.messages.length-1] : null;
+        const preview = lastMsg ? (lastMsg.by==='staff'?'👨‍💻 ':'👤 ') + escapeHTML(lastMsg.text).slice(0,80) : escapeHTML(t.message).slice(0,80);
         const el = document.createElement('div');
         el.className = 'ticket';
         el.innerHTML = `
           <div><strong>Ticket:</strong> ${t.id} • <span class="tag">${t.status}</span></div>
-          <div class="meta">Von: ${t.from} • ${fmt(t.time)}${last}</div>
-          <div style="margin:6px 0 8px; white-space:pre-wrap;">${escapeHTML(t.message)}</div>
+          <div class="meta">Von: ${t.from} • ${fmt(t.time)}</div>
+          <div style="margin:6px 0 8px; white-space:pre-wrap;">${preview}</div>
           <div class="rowbtn">
-            <button data-act="reply" data-id="${t.id}">Antworten</button>
+            <button data-act="reply" data-id="${t.id}">Öffnen</button>
             <button data-act="resolve" data-id="${t.id}">Als erledigt</button>
             <button data-act="delete" data-id="${t.id}">Löschen</button>
           </div>`;
         ticketsList.appendChild(el);
       }
+      // badge/open count (staff only)
+      const open = tickets.filter(t=>t.status==='offen').length;
+      $('#openCount').textContent = '('+open+' offen)';
+      if(staff){ if(open>0){ $('#badge').textContent=String(open); show($('#badge')); } else hide($('#badge')); }
     }
     function escapeHTML(s){ return (s||'').replace(/[&<>]/g, t => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[t])); }
 
     // Reply modal (staff)
     function openReply(id){
       const t = tickets.find(x=>x.id===id); if(!t) return;
-      replyTicketId.textContent = '#'+t.id;
+      $('#replyTicketId').textContent = '#'+t.id;
       renderThread(t);
       replyText.value='';
       show(replyModal);
     }
     function closeReply(){ hide(replyModal); }
     replyBack.addEventListener('click', ()=>{ closeReply(); openTickets(); });
-    replyResolve.addEventListener('click', ()=>{
-      const i = tickets.findIndex(x=>x.id===activeTicketId); if(i<0) return;
-      tickets[i].status = 'erledigt'; save('cbh_tickets', tickets); toast('Ticket erledigt ✅'); renderTickets(); updateBadge(); closeReply();
+    replyResolve.addEventListener('click', async ()=>{
+      const id = activeTicketId; if(!id) return;
+      await FB.db.collection('cbh_tickets').doc(id).update({status:'erledigt'});
+      toast('Ticket erledigt ✅'); renderTickets(); closeReply();
     });
-    sendReply.addEventListener('click', ()=>{
-      const txt = (replyText.value||'').trim();
-      if(!txt){ toast('Bitte eine Antwort schreiben.'); return; }
-      addReply(activeTicketId, txt);
+    sendReply.addEventListener('click', async ()=>{
+      const txt = (replyText.value||'').trim(); if(!txt){ toast('Bitte eine Antwort schreiben.'); return; }
+      await FB.db.collection('cbh_tickets').doc(activeTicketId).update({
+        messages: firebase.firestore.FieldValue.arrayUnion({ by:'staff', text: txt, time: Date.now() })
+      });
       replyText.value='';
-    });
-    $('#templates').addEventListener('click', (e)=>{
-      const chip = e.target.closest('[data-tpl]'); if(!chip) return;
-      replyText.value = chip.dataset.tpl;
-      replyText.focus();
-      replyText.setSelectionRange(replyText.value.length, replyText.value.length);
     });
     function renderThread(t){
       thread.innerHTML = '';
-      // Original message
-      const o = document.createElement('div');
-      o.className = 'tmsg';
-      o.innerHTML = `<div class="who">🧑 Kunde</div><div class="txt">${escapeHTML(t.message)}<div class="meta">${fmt(t.time)}</div></div>`;
-      thread.appendChild(o);
-      // Replies
-      if(t.replies && t.replies.length){
-        for(const r of t.replies){
-          const d = document.createElement('div');
-          d.className = 'tmsg right';
-          d.innerHTML = `<div class="txt">${escapeHTML(r.text)}<div class="meta">${fmt(r.time)} • Mitarbeiter</div></div>`;
-          thread.appendChild(d);
-        }
+      const msgs = Array.isArray(t.messages)? t.messages : [];
+      for(const m of msgs){
+        const d = document.createElement('div');
+        d.className = 'tmsg ' + (m.by==='staff'?'right':'');
+        d.innerHTML = `<div class="who">${m.by==='staff'?'Mitarbeiter':'Kunde'}</div><div class="txt">${escapeHTML(m.text)}<div class="meta">${fmt(m.time)}</div></div>`;
+        thread.appendChild(d);
       }
       thread.scrollTop = thread.scrollHeight;
     }
-    function addReply(id, text){
-      const i = tickets.findIndex(x=>x.id===id); if(i<0) return;
-      const entry = { text, time: Date.now() };
-      if(!Array.isArray(tickets[i].replies)) tickets[i].replies = [];
-      tickets[i].replies.unshift(entry);
-      save('cbh_tickets', tickets);
-      toast('Antwort gesendet ✉️');
-      // Mirror into chat for Sichtbarkeit (lokal)
-      pushMsg('bot', '👨‍💻 Mitarbeiter: ' + text);
-      renderThread(tickets[i]);
-      renderTickets();
-      updateBadge();
+
+    // Realtime subscription
+    function subscribeTickets(){
+      if(FB.unsub){ try{ FB.unsub(); }catch{} FB.unsub=null; }
+      let q;
+      if(staff){ q = FB.db.collection('cbh_tickets').orderBy('time','desc').limit(200); }
+      else     { q = FB.db.collection('cbh_tickets').where('from','==',deviceId); }
+      FB.unsub = q.onSnapshot(async (snap)=>{
+        const arr = [];
+        const toMigrate = [];
+        snap.forEach(doc=>{
+          const d = doc.data() || {};
+          const n = normalizeDoc(doc.id, d);
+          arr.push(n);
+          if(!Array.isArray(d.messages)){ toMigrate.push({id:doc.id, n}); }
+        });
+        tickets = arr;
+        // perform one-time migrations (legacy -> messages)
+        for(const m of toMigrate){
+          try{
+            await FB.db.collection('cbh_tickets').doc(m.id).update({ messages: m.n.messages });
+          }catch(e){ /* ignore */ }
+        }
+        if(mode==='staff') renderStaffChat();
+        if(staff) renderTickets();
+      }, (err)=>{
+        console.error('snapshot error', err);
+        modeLabel.textContent='Fehler';
+        liveDot.classList.remove('live');
+      });
     }
 
     // Secret login: Ctrl+Alt+# OR triple-click logo OR /login
@@ -384,8 +499,6 @@
       if(e.ctrlKey && e.altKey && isHash){ e.preventDefault(); openLogin(); }
       if(e.key==='Escape'){ hide(contactModal); hide(loginModal); hide(ticketsModal); hide(replyModal); }
     });
-
-    // Login steps
     cancelLogin.addEventListener('click', closeLogin);
     next1.addEventListener('click', ()=>{
       if(code1.value.trim()==='140318'){ hide($('#step1')); show($('#step2')); email.focus(); } else toast('Falscher Code.');
@@ -396,40 +509,46 @@
     back1.addEventListener('click', ()=>{ hide($('#step2')); show($('#step1')); });
     back2.addEventListener('click', ()=>{ hide($('#step3')); show($('#step2')); });
     finishLogin.addEventListener('click', ()=>{
-      if(code2.value.trim()==='11.09.2000'){ sessionStorage.setItem('cbh_staff','1'); staff=true; applyStaffUI(); toast('Mitarbeiter-Modus aktiviert 🛡️'); closeLogin(); }
+      if(code2.value.trim()==='11.09.2000'){ sessionStorage.setItem('cbh_staff','1'); staff=true; applyStaffUI(); toast('Mitarbeiter-Modus aktiviert 🛡️'); closeLogin(); subscribeTickets(); }
       else toast('Falscher zweiter Code.');
     });
 
     // Staff UI
     function applyStaffUI(){
       if(staff){
-        contactBtn.textContent = 'Anfragen ('+tickets.filter(t=>t.status==='offen').length+')';
-        contactBtn.title = 'Anfragen anzeigen';
+        contactBtn.textContent = 'Chat-Center';
+        contactBtn.title = 'Chat-Center öffnen';
         show(logoutBtn);
+        show(fab);
       }else{
         contactBtn.textContent = 'Kontakt • Mitarbeiter';
         contactBtn.title = 'Mitarbeiter kontaktieren';
         hide(logoutBtn);
+        hide(fab);
       }
-      updateBadge();
     }
     logoutBtn.addEventListener('click', ()=>{
       staff = false;
       sessionStorage.removeItem('cbh_staff');
       applyStaffUI();
       toast('Abgemeldet.');
+      subscribeTickets(); // switch to user scope
     });
 
-    // First run
-    if(!load('cbh_seen_v4', false)){
-      pushMsg('bot','Willkommen! ✨ Ich bin dein Chrombook-Helfer. Stell mir Fragen zu Linux, Apps, Leistung & mehr. Wenn ich nicht weiterweiß, verweise ich dich an einen Mitarbeiter. 🤝');
-      save('cbh_seen_v4', true);
-    }
-    renderChat();
-    applyStaffUI();
-    updateBadge();
+    // FAB (staff only): open chat center
+    fab.addEventListener('click', ()=>{ if(staff) openTickets(); });
 
-    // Focus input for convenience
+    // First run UX
+    if(!load('cbh_seen_v7', false)){
+      botChat.push({role:'bot', text:'Willkommen! ✨ Du kannst oben zwischen 🤖 Bot und 👨‍💻 Mitarbeiter umschalten. Wenn du „Mitarbeiter kontaktieren“ nutzt, öffnet sich direkt der Live-Chat. 🤝', time: Date.now()});
+      save('cbh_seen_v7', true);
+    }
+
+    // Initial render
+    applyStaffUI();
+    renderChat();
+
+    // Focus input
     setTimeout(()=> input.focus(), 200);
   });
   </script>
