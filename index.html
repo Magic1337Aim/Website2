@@ -1,55 +1,437 @@
 <!doctype html>
 <html lang="de">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Chrombook‑Helfer</title>
-  <meta name="theme-color" content="#0b0c10"/>
-  <link rel="icon" href="favicon.png" sizes="64x64" type="image/png"/>
-  <link rel="manifest" href="site.webmanifest"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+  <title>Chrombook Helfer Bot – v4</title>
   <style>
-    :root { --bg:#0b0c10; --border:#25283a; --text:#e9eaf0; --muted:#a6a9b3; }
-    html,body { height:100%; }
-    body { margin:0; background:#0b0c10; color:var(--text); font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
-    .skeleton { max-width:960px; margin:0 auto; padding:16px; }
-    .header { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--border); }
-    .title { font-weight:700; letter-spacing:.2px; }
-    .pill { margin-left:auto; padding:6px 10px; border:1px solid var(--border); border-radius:999px; color:var(--muted); }
-    .card { margin-top:12px; border:1px solid var(--border); border-radius:12px; padding:12px; background:#111218; }
+    :root{
+      --bg:#0b0f19; --panel:#121a2a; --panel2:#0f1726; --border:#20304e; --text:#e9eef7; --muted:#a3b0c7;
+      --accent:#6d7cff; --accent2:#00d4ff; --danger:#ff6b6b; --success:#3ddc97; --radius:16px;
+    }
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; margin:0; background: radial-gradient(1200px 800px at 10% -10%, #1b2440 0%, transparent 60%), var(--bg); color:var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, sans-serif; }
+    .app{ max-width:900px; margin-inline:auto; display:flex; flex-direction:column; min-height:100dvh; padding:12px; }
+    header{ position:sticky; top:0; z-index:5; background: linear-gradient(135deg, rgba(109,124,255,.25), rgba(0,212,255,.12)), var(--panel); border:1px solid var(--border); border-radius:14px; padding:8px 10px; }
+    .row{ display:flex; align-items:center; gap:10px; }
+    .sp{ flex:1; }
+    .logo{ display:flex; align-items:center; gap:10px; text-decoration:none; color:inherit; user-select:none; }
+    .logo svg{ width:32px; height:32px; border-radius:8px; }
+    .title{ font-weight:700; }
+    button{ font:inherit; color:var(--text); background: linear-gradient(180deg,#1b2440,#121a2a); border:1px solid var(--border); padding:10px 14px; border-radius:12px; cursor:pointer; }
+    button:hover{ filter:brightness(1.06); }
+    .ghost{ background:transparent; border-color:var(--border); }
+    .chip{ display:inline-block; padding:6px 10px; border:1px solid var(--border); border-radius:999px; font-size:12px; cursor:pointer; margin:4px 6px 0 0; }
+    .cards{ display:grid; grid-template-columns:repeat(2,1fr); gap:10px; margin-top:10px; }
+    @media (min-width:680px){ .cards{ grid-template-columns:repeat(4,1fr); } }
+    .card{ border:1px solid var(--border); background: linear-gradient(180deg,var(--panel),var(--panel2)); border-radius:16px; padding:12px; }
+    .card h4{ margin:0 0 6px; font-size:14px; color:#c9d7ff; }
+    .card p{ margin:0 0 8px; font-size:13px; color:var(--muted); }
+    .chat{ margin-top:10px; border:1px solid var(--border); border-radius:16px; background: linear-gradient(180deg,#0e152b,#0b1120); padding:12px; display:flex; flex-direction:column; gap:10px; min-height:44dvh; }
+    .msg{ display:flex; gap:8px; align-items:flex-start; }
+    .msg .bubble{ background: linear-gradient(180deg,#121a2a,#0f1726); border:1px solid var(--border); border-radius:12px; padding:10px 12px; font-size:14px; line-height:1.4; white-space:pre-wrap; }
+    .msg.user .bubble{ background: linear-gradient(180deg,#0f1524,#0a0f19); }
+    .avatar{ width:30px; height:30px; border-radius:50%; display:grid; place-items:center; background: radial-gradient(circle at 35% 35%, #9bb3ff, #6d7cff 40%, #0b0f19 70%); border:1px solid rgba(255,255,255,.12); }
+    .composer{ position:sticky; bottom:0; margin-top:10px; display:flex; gap:8px; border:1px solid var(--border); border-radius:12px; padding:8px; background: linear-gradient(180deg,#0b1120,#0b1120); }
+    .composer input{ flex:1; border:1px solid var(--border); border-radius:10px; padding:12px 12px; background:#0b1120; color:var(--text); }
+    .toast{ position:fixed; left:50%; transform:translateX(-50%); bottom:14px; background: rgba(0,0,0,.6); border:1px solid var(--border); padding:10px 12px; border-radius:12px; z-index:30; }
+    .fab{ position:fixed; right:16px; bottom:84px; width:56px; height:56px; border-radius:50%; display:grid; place-items:center; background: linear-gradient(135deg, rgba(109,124,255,.85), rgba(0,212,255,.65)); border:1px solid rgba(255,255,255,.18); z-index:15; }
+    .badge{ position:absolute; top:-6px; right:-6px; min-width:18px; height:18px; padding:0 5px; display:grid; place-items:center; background: var(--danger); color:white; border-radius:999px; font-size:11px; font-weight:700; border:1px solid rgba(255,255,255,.35); }
+    /* Modals */
+    .modal-backdrop{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; padding:16px; background: rgba(0,0,0,.55); z-index:20; }
+    .modal{ width:min(780px,96vw); background: linear-gradient(180deg,var(--panel),var(--panel2)); border:1px solid var(--border); border-radius:16px; padding:14px; }
+    .modal input, .modal textarea{ width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:#0b1120; color:var(--text); }
+    .rowbtn{ display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+    .hidden{ display:none !important; }
+    .meta{ font-size:12px; color:var(--muted); }
+    .ticket{ border:1px solid var(--border); border-radius:12px; padding:10px; background: linear-gradient(180deg,#0f1526,#0c1222); margin-top:8px; }
+    .tag{ display:inline-block; border:1px solid var(--border); border-radius:999px; padding:2px 8px; font-size:11px; color:#c9d7ff; }
+    .thread{ max-height:38vh; overflow:auto; border:1px solid var(--border); border-radius:12px; padding:10px; background: linear-gradient(180deg,#0f1526,#0c1222); }
+    .tmsg{ display:flex; gap:8px; margin-bottom:8px; }
+    .tmsg .who{ font-weight:700; font-size:12px; color:#c9d7ff; min-width:100px; }
+    .tmsg .txt{ white-space:pre-wrap; }
+    .right{ justify-content: flex-end; }
+    noscript{ display:block; background:#331; color:#fff; padding:10px; border-radius:8px; margin-top:10px; }
   </style>
 </head>
 <body>
-  <div class="skeleton">
-    <div class="header">
-      <img src="favicon.png" alt="" width="24" height="24" style="border-radius:6px"/>
-      <div class="title">Chrombook‑Helfer</div>
-      <div id="status" class="pill">Lade …</div>
-    </div>
-    <div class="card">
-      <div style="opacity:.8">Die Oberfläche lädt gerade. Falls du nur diese Ansicht siehst, prüfe bitte Internet/Firebase‑Setup oder lade die Seite neu.</div>
+  <noscript>JavaScript ist deaktiviert. Bitte in Chrome aktivieren – sonst funktioniert der Bot nicht.</noscript>
+  <div class="app">
+    <header>
+      <div class="row">
+        <a href="#" class="logo" id="logo" title="Chrombook Helfer">
+          <svg viewBox="0 0 64 64" aria-hidden="true">
+            <defs><radialGradient id="lg" cx="50%" cy="50%" r="70%">
+              <stop offset="0%" stop-color="#cfe3ff"/><stop offset="40%" stop-color="#7ea3ff"/><stop offset="100%" stop-color="#0a0f1d"/></radialGradient></defs>
+            <rect width="64" height="64" rx="12" fill="url(#lg)"/>
+            <g opacity="0.9"><circle cx="16" cy="18" r="2" fill="white"/><circle cx="46" cy="14" r="1.2" fill="white"/><circle cx="40" cy="34" r="1.1" fill="white"/><circle cx="24" cy="48" r="1.2" fill="white"/></g>
+            <path d="M10 50 Q32 30 54 50" stroke="#7ef3ff" stroke-width="2" fill="none" opacity="0.8"/>
+          </svg>
+          <div>
+            <div class="title">Chrombook&nbsp;Helfer</div>
+            <div class="meta">Galaxy • Dark</div>
+          </div>
+        </a>
+        <div class="sp"></div>
+        <button id="contactBtn" title="Mitarbeiter kontaktieren">Kontakt • Mitarbeiter</button>
+        <button id="logoutBtn" class="ghost hidden" title="Mitarbeiter abmelden">Abmelden</button>
+      </div>
+    </header>
+
+    <section class="cards" id="cards">
+      <div class="card"><h4>🚀 Erste Schritte</h4><p>Chromebook Basics & Shortcuts.</p><button data-intent="shortcuts">Tastenkürzel</button></div>
+      <div class="card"><h4>⚙️ Leistung</h4><p>Langsam? So wird’s flotter.</p><button data-intent="speed">Schneller machen</button></div>
+      <div class="card"><h4>🐧 Linux & Dev</h4><p>Linux aktivieren & apt.</p><button data-intent="linux">Linux installieren</button></div>
+      <div class="card"><h4>🛍️ Apps</h4><p>Play-Store & PWAs.</p><button data-intent="apps">Apps & Spiele</button></div>
+    </section>
+
+    <section class="chat" id="chat" aria-live="polite" aria-label="Chatverlauf"></section>
+
+    <form class="composer" id="composer" autocomplete="off">
+      <input id="input" type="text" placeholder="Frag mich etwas … (z. B. „Wie installiere ich Linux?“) ✨" autofocus />
+      <button id="send" type="submit">Senden ▶</button>
+    </form>
+  </div>
+
+  <div class="fab" id="fab" title="Mitarbeiter kontaktieren">
+    ✉️ <span class="badge hidden" id="badge">0</span>
+  </div>
+
+  <!-- Kontakt -->
+  <div class="modal-backdrop hidden" id="contactModal">
+    <div class="modal">
+      <h3>👋 Mitarbeiter kontaktieren</h3>
+      <label for="contactMsg">Nachricht</label>
+      <textarea id="contactMsg" rows="4" placeholder="Worum geht es?"></textarea>
+      <div class="rowbtn">
+        <button id="cancelContact" type="button">Abbrechen</button>
+        <button id="sendContact" type="button">Absenden</button>
+      </div>
     </div>
   </div>
 
+  <!-- Tickets (Staff) -->
+  <div class="modal-backdrop hidden" id="ticketsModal">
+    <div class="modal">
+      <h3>📨 Anfragen <span class="meta" id="openCount">(0 offen)</span></h3>
+      <div id="ticketsList"></div>
+      <div class="rowbtn">
+        <button id="closeTickets" type="button">Schließen</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reply (Staff) -->
+  <div class="modal-backdrop hidden" id="replyModal">
+    <div class="modal">
+      <h3>💬 Ticket <span class="meta" id="replyTicketId"></span></h3>
+      <div class="thread" id="thread"></div>
+      <div style="margin-top:8px;">
+        <div class="meta">Antwortvorlagen</div>
+        <div id="templates">
+          <span class="chip" data-tpl="Danke für deine Nachricht! Wir prüfen das und melden uns. 🙌">Standard</span>
+          <span class="chip" data-tpl="Kannst du mir bitte noch ein paar Details nennen (Fehlermeldung, Schritte)? 🔎">Mehr Details</span>
+          <span class="chip" data-tpl="Bitte einmal Browser neu starten und erneut testen. ⚙️">Neustart</span>
+          <span class="chip" data-tpl="Alles klar! Das haben wir behoben. ✅">Behoben</span>
+        </div>
+      </div>
+      <textarea id="replyText" rows="3" placeholder="Antwort schreiben …"></textarea>
+      <div class="rowbtn">
+        <button id="replyBack" type="button">Zurück</button>
+        <button id="replyResolve" type="button">Als erledigt markieren</button>
+        <button id="sendReply" type="button">Antwort senden</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Login -->
+  <div class="modal-backdrop hidden" id="loginModal">
+    <div class="modal">
+      <div id="step1">
+        <h3>🔒 Geheim: Mitarbeiter-Login (1/3)</h3>
+        <input id="code1" type="password" placeholder="Code 1" />
+        <div class="rowbtn"><button id="cancelLogin" type="button">Abbrechen</button><button id="next1" type="button">Weiter</button></div>
+      </div>
+      <div id="step2" class="hidden">
+        <h3>📧 E-Mail (2/3)</h3>
+        <input id="email" type="email" placeholder="komplette Mitarbeiter-E-Mail" />
+        <p class="meta">Hinweis: <strong>J1339K</strong> – gib deine komplette E-Mail ein.</p>
+        <div class="rowbtn"><button id="back1" type="button">Zurück</button><button id="next2" type="button">Weiter</button></div>
+      </div>
+      <div id="step3" class="hidden">
+        <h3>🔑 Zweiter Code (3/3)</h3>
+        <input id="code2" type="password" placeholder="TT.MM.JJJJ" />
+        <div class="rowbtn"><button id="back2" type="button">Zurück</button><button id="finishLogin" type="button">Anmelden</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
   <script>
-  (function(){
-    function b64ToU8(b){return Uint8Array.from(atob(b),c=>c.charCodeAt(0));}
-    function xor(u,k){for(let i=0;i<u.length;i++)u[i]^=k[i%k.length];return u;}
-    function toText(u){return new TextDecoder().decode(u);}
-    const k=new Uint8Array([0x13,0x37,0xC0,0xDE]);
-    const b64="NmeBh194gZpMZJKdNg==";
-    const codeU8 = xor(b64ToU8(b64), k);
-    const blob = new Blob([toText(codeU8)], {type:"text/javascript"});
-    const url = URL.createObjectURL(blob);
-    // Status touch-up
-    var s = document.getElementById("status"); if (s) s.textContent = "Verbinde …";
-    import(url).then(()=>{ if(s) s.textContent="Geladen"; }).catch(err=>{
-      console.error("Payload-Fehler:", err);
-      if(s) s.textContent="Fehler beim Laden";
-      const c = document.querySelector(".card");
-      if(c) c.innerHTML = "<b>Fehler:</b> "+(err&&err.message?err.message:err)+
-        "<br/><br/>Bitte prüfe:<ul style='margin-top:6px'><li>Seite über HTTPS (nicht file://) öffnen</li><li>Firebase Auth (E‑Mail‑Link & Anonyme Anmeldung) aktiviert</li><li>Domain in Firebase zugelassen</li></ul>";
+  document.addEventListener('DOMContentLoaded', function(){
+    // Helpers
+    const $ = (s, r=document)=> r.querySelector(s);
+    const $$ = (s, r=document)=> Array.from(r.querySelectorAll(s));
+    const hide = el => el.classList.add('hidden');
+    const show = el => el.classList.remove('hidden');
+    const toast = (t,ms=2200)=>{ const e=$('#toast'); e.textContent=t; show(e); setTimeout(()=>hide(e),ms); };
+    const fmt = t=> new Date(t).toLocaleString('de-DE',{year:'2-digit',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const save = (k,v)=> localStorage.setItem(k, JSON.stringify(v));
+    const load = (k,d)=> { try{ return JSON.parse(localStorage.getItem(k)) ?? d; }catch{ return d; } };
+    const uid = ()=> Math.random().toString(36).slice(2,10);
+    const deviceId = load('cbh_device') || (save('cbh_device','dev-'+uid()), load('cbh_device'));
+
+    // State
+    let chat = load('cbh_chat', []);
+    let tickets = load('cbh_tickets', []);
+    let staff = sessionStorage.getItem('cbh_staff')==='1';
+    let activeTicketId = null;
+
+    // DOM
+    const chatEl = $('#chat'), input = $('#input'), composer = $('#composer');
+    const cards = $('#cards');
+    const contactBtn = $('#contactBtn'), fab = $('#fab'), badge = $('#badge');
+    const contactModal = $('#contactModal'), contactMsg = $('#contactMsg');
+    const ticketsModal = $('#ticketsModal'), ticketsList = $('#ticketsList'), openCount = $('#openCount');
+    const closeTicketsBtn = $('#closeTickets');
+    const replyModal = $('#replyModal'), thread = $('#thread'), replyText = $('#replyText'), replyTicketId = $('#replyTicketId');
+    const sendReply = $('#sendReply'), replyBack = $('#replyBack'), replyResolve = $('#replyResolve');
+    const loginModal = $('#loginModal'), code1 = $('#code1'), email = $('#email'), code2 = $('#code2');
+    const next1=$('#next1'), next2=$('#next2'), finishLogin=$('#finishLogin'), cancelLogin=$('#cancelLogin'), back1=$('#back1'), back2=$('#back2');
+    const logo = $('#logo'), logoutBtn = $('#logoutBtn');
+
+    // Render chat
+    function renderChat(){
+      chatEl.innerHTML = '';
+      for(const m of chat){
+        const wrap = document.createElement('div');
+        wrap.className = 'msg ' + (m.role==='user'?'user':'bot');
+        const avatar = document.createElement('div'); avatar.className='avatar'; avatar.textContent = m.role==='user'?'👤':'🤖';
+        const bubble = document.createElement('div'); bubble.className='bubble'; bubble.textContent = m.text;
+        const meta = document.createElement('div'); meta.className='meta'; meta.textContent = (m.role==='user'?'Du':'Helfer')+' • '+fmt(m.time);
+        const col = document.createElement('div'); col.appendChild(bubble); col.appendChild(meta);
+        wrap.appendChild(avatar); wrap.appendChild(col); chatEl.appendChild(wrap);
+      }
+      chatEl.scrollTop = chatEl.scrollHeight;
+      save('cbh_chat', chat);
+    }
+    function pushMsg(role,text){ chat.push({role,text,time:Date.now(),id:uid(),device:deviceId}); renderChat(); }
+
+    // Knowledge base (compact)
+    const KB = [
+      {p:['hallo','hi','hey','moin','grüß'], r:'Hey! 👋 Ich bin dein Chrombook-Helfer. Frag mich alles zu Chromebook, Linux, Apps & Leistung. ✨'},
+      {p:['tasten','shortcut','kürzel','kombination'], r:'⌨️ Shortcuts:\n• Screenshot: Strg+▢||\n• Bereich: Strg+Umschalt+▢||\n• Tab neu/schließen: Strg+T / Strg+W\n• Task-Manager: Such + Esc 🙂'},
+      {p:['linux','crostini'], r:'🐧 Linux: Einstellungen → Entwickler → Linux aktivieren. Dann: sudo apt update && sudo apt upgrade -y • sudo apt install git curl build-essential -y'},
+      {p:['langsam','leistung','ruckelt','lag'], r:'⚡ Schneller machen: Tabs/Erweiterungen prüfen, Speicher aufräumen, Hardwarebeschleunigung aktivieren (Chrome → System), Neustart/Powerwash als letzter Schritt.'},
+      {p:['apps','play','android'], r:'📱 Apps: Einstellungen → Apps → Play-Store aktivieren → im Store installieren. Viele Dienste auch als PWA verfügbar. 🛍️'},
+      {p:['druck','drucker','pdf'], r:'🖨️ Drucken/PDF: Druck-Dialog → „Als PDF speichern“ oder Drucker unter Einstellungen → „Drucker“ hinzufügen. 📄'},
+      {p:['hilfe','mitarbeiter','kontakt'], r:'🤝 Wenn du persönliche Hilfe brauchst: „Kontakt • Mitarbeiter“ anklicken oder ✉️ unten – wir melden uns!'},
+    ];
+    function answer(q){
+      const s = (q||'').toLowerCase();
+      for(const e of KB){
+        if(e.p.some(x=>s.includes(x))) return e.r + ' ✨';
+      }
+      return 'Ich bin mir nicht sicher. 🤔➡️ Ich verweise dich an einen Mitarbeiter. Bitte „Kontakt • Mitarbeiter“ anklicken. 🙌';
+    }
+
+    // Send flow
+    $('#composer').addEventListener('submit', (ev)=>{
+      ev.preventDefault();
+      const val = (input.value||'').trim();
+      if(!val) return;
+      // secret command fallback
+      if(val === '/login'){ openLogin(); input.value=''; return; }
+      pushMsg('user', val);
+      pushMsg('bot', 'Denke nach …');
+      setTimeout(()=>{ chat.pop(); pushMsg('bot', answer(val)); }, 200);
+      input.value='';
     });
-  })();
+
+    // Cards → prefill
+    $('#cards').addEventListener('click', (e)=>{
+      const b = e.target.closest('button[data-intent]'); if(!b) return;
+      const m = {shortcuts:'Welche Tastenkürzel gibt es?', speed:'Mein Chromebook ist langsam. Was tun?', linux:'Wie installiere ich Linux (Crostini)?', apps:'Wie installiere ich Apps?'}[b.dataset.intent];
+      if(m){ pushMsg('user', m); setTimeout(()=> pushMsg('bot', answer(m)), 200); }
+    });
+
+    // Contact flow (local tickets + badge)
+    function openContact(){ show(contactModal); $('#contactMsg').focus(); }
+    function closeContact(){ hide(contactModal); }
+    function updateBadge(){
+      const c = tickets.filter(t=>t.status==='offen').length;
+      if(c>0){ badge.textContent=String(c); show(badge);} else hide(badge);
+      if(staff){ contactBtn.textContent = 'Anfragen ('+c+')'; contactBtn.title = 'Anfragen anzeigen'; }
+      else     { contactBtn.textContent = 'Kontakt • Mitarbeiter'; contactBtn.title = 'Mitarbeiter kontaktieren'; }
+      openCount.textContent = '('+c+' offen)';
+    }
+    async function createTicket(message){
+      const t = {id:'tkt-'+uid(), from:deviceId, message:message||'(kein Text)', time:Date.now(), status:'offen', replies:[]};
+      tickets.unshift(t); save('cbh_tickets', tickets); updateBadge(); toast('Anfrage gesendet ✅');
+    }
+    $('#contactBtn').addEventListener('click', ()=>{ if(staff){ openTickets(); } else openContact(); });
+    $('#fab').addEventListener('click', ()=>{ if(staff){ openTickets(); } else openContact(); });
+    $('#cancelContact').addEventListener('click', closeContact);
+    $('#sendContact').addEventListener('click', async ()=>{
+      const msg = (contactMsg.value||'').trim(); if(!msg){ toast('Bitte Nachricht eingeben.'); return; }
+      await createTicket(msg); contactMsg.value=''; closeContact();
+    });
+
+    // Tickets modal (staff)
+    function openTickets(){ renderTickets(); show(ticketsModal); }
+    function closeTicketsModal(){ hide(ticketsModal); }
+    $('#closeTickets').addEventListener('click', closeTicketsModal);
+    $('#ticketsList').addEventListener('click', (e)=>{
+      const btn = e.target.closest('button[data-act]'); if(!btn) return;
+      const id = btn.dataset.id; const act = btn.dataset.act;
+      const i = tickets.findIndex(t=>t.id===id); if(i<0) return;
+      if(act==='resolve'){ tickets[i].status='erledigt'; save('cbh_tickets', tickets); renderTickets(); updateBadge(); }
+      if(act==='delete'){ tickets.splice(i,1); save('cbh_tickets', tickets); renderTickets(); updateBadge(); }
+      if(act==='reply'){ activeTicketId = id; openReply(id); }
+    });
+    function renderTickets(){
+      ticketsList.innerHTML = '';
+      if(tickets.length===0){ ticketsList.innerHTML = '<p class="meta">Keine Anfragen vorhanden.</p>'; return; }
+      for(const t of tickets){
+        const last = (t.replies && t.replies[0]) ? ' • Letzte Antwort: '+fmt(t.replies[0].time) : '';
+        const el = document.createElement('div');
+        el.className = 'ticket';
+        el.innerHTML = `
+          <div><strong>Ticket:</strong> ${t.id} • <span class="tag">${t.status}</span></div>
+          <div class="meta">Von: ${t.from} • ${fmt(t.time)}${last}</div>
+          <div style="margin:6px 0 8px; white-space:pre-wrap;">${escapeHTML(t.message)}</div>
+          <div class="rowbtn">
+            <button data-act="reply" data-id="${t.id}">Antworten</button>
+            <button data-act="resolve" data-id="${t.id}">Als erledigt</button>
+            <button data-act="delete" data-id="${t.id}">Löschen</button>
+          </div>`;
+        ticketsList.appendChild(el);
+      }
+    }
+    function escapeHTML(s){ return (s||'').replace(/[&<>]/g, t => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[t])); }
+
+    // Reply modal (staff)
+    function openReply(id){
+      const t = tickets.find(x=>x.id===id); if(!t) return;
+      replyTicketId.textContent = '#'+t.id;
+      renderThread(t);
+      replyText.value='';
+      show(replyModal);
+    }
+    function closeReply(){ hide(replyModal); }
+    replyBack.addEventListener('click', ()=>{ closeReply(); openTickets(); });
+    replyResolve.addEventListener('click', ()=>{
+      const i = tickets.findIndex(x=>x.id===activeTicketId); if(i<0) return;
+      tickets[i].status = 'erledigt'; save('cbh_tickets', tickets); toast('Ticket erledigt ✅'); renderTickets(); updateBadge(); closeReply();
+    });
+    sendReply.addEventListener('click', ()=>{
+      const txt = (replyText.value||'').trim();
+      if(!txt){ toast('Bitte eine Antwort schreiben.'); return; }
+      addReply(activeTicketId, txt);
+      replyText.value='';
+    });
+    $('#templates').addEventListener('click', (e)=>{
+      const chip = e.target.closest('[data-tpl]'); if(!chip) return;
+      replyText.value = chip.dataset.tpl;
+      replyText.focus();
+      replyText.setSelectionRange(replyText.value.length, replyText.value.length);
+    });
+    function renderThread(t){
+      thread.innerHTML = '';
+      // Original message
+      const o = document.createElement('div');
+      o.className = 'tmsg';
+      o.innerHTML = `<div class="who">🧑 Kunde</div><div class="txt">${escapeHTML(t.message)}<div class="meta">${fmt(t.time)}</div></div>`;
+      thread.appendChild(o);
+      // Replies
+      if(t.replies && t.replies.length){
+        for(const r of t.replies){
+          const d = document.createElement('div');
+          d.className = 'tmsg right';
+          d.innerHTML = `<div class="txt">${escapeHTML(r.text)}<div class="meta">${fmt(r.time)} • Mitarbeiter</div></div>`;
+          thread.appendChild(d);
+        }
+      }
+      thread.scrollTop = thread.scrollHeight;
+    }
+    function addReply(id, text){
+      const i = tickets.findIndex(x=>x.id===id); if(i<0) return;
+      const entry = { text, time: Date.now() };
+      if(!Array.isArray(tickets[i].replies)) tickets[i].replies = [];
+      tickets[i].replies.unshift(entry);
+      save('cbh_tickets', tickets);
+      toast('Antwort gesendet ✉️');
+      // Mirror into chat for Sichtbarkeit (lokal)
+      pushMsg('bot', '👨‍💻 Mitarbeiter: ' + text);
+      renderThread(tickets[i]);
+      renderTickets();
+      updateBadge();
+    }
+
+    // Secret login: Ctrl+Alt+# OR triple-click logo OR /login
+    function openLogin(){ show(loginModal); hide($('#step2')); hide($('#step3')); show($('#step1')); setTimeout(()=>code1.focus(), 50); }
+    function closeLogin(){ hide(loginModal); }
+    let logoClicks = 0, logoTimer = null;
+    logo.addEventListener('click', ()=>{
+      logoClicks++;
+      if(logoTimer) clearTimeout(logoTimer);
+      logoTimer = setTimeout(()=>{ logoClicks=0; }, 500);
+      if(logoClicks>=3){ openLogin(); logoClicks=0; }
+    });
+    window.addEventListener('keydown', (e)=>{
+      const isHash = e.key === '#' || e.code === 'Backslash' || (e.code==='Digit3' && (e.altKey||e.ctrlKey));
+      if(e.ctrlKey && e.altKey && isHash){ e.preventDefault(); openLogin(); }
+      if(e.key==='Escape'){ hide(contactModal); hide(loginModal); hide(ticketsModal); hide(replyModal); }
+    });
+
+    // Login steps
+    cancelLogin.addEventListener('click', closeLogin);
+    next1.addEventListener('click', ()=>{
+      if(code1.value.trim()==='140318'){ hide($('#step1')); show($('#step2')); email.focus(); } else toast('Falscher Code.');
+    });
+    next2.addEventListener('click', ()=>{
+      if((email.value||'').trim().toLowerCase()==='julian1339klausch@gmx.de'){ hide($('#step2')); show($('#step3')); code2.focus(); } else toast('E-Mail stimmt nicht.');
+    });
+    back1.addEventListener('click', ()=>{ hide($('#step2')); show($('#step1')); });
+    back2.addEventListener('click', ()=>{ hide($('#step3')); show($('#step2')); });
+    finishLogin.addEventListener('click', ()=>{
+      if(code2.value.trim()==='11.09.2000'){ sessionStorage.setItem('cbh_staff','1'); staff=true; applyStaffUI(); toast('Mitarbeiter-Modus aktiviert 🛡️'); closeLogin(); }
+      else toast('Falscher zweiter Code.');
+    });
+
+    // Staff UI
+    function applyStaffUI(){
+      if(staff){
+        contactBtn.textContent = 'Anfragen ('+tickets.filter(t=>t.status==='offen').length+')';
+        contactBtn.title = 'Anfragen anzeigen';
+        show(logoutBtn);
+      }else{
+        contactBtn.textContent = 'Kontakt • Mitarbeiter';
+        contactBtn.title = 'Mitarbeiter kontaktieren';
+        hide(logoutBtn);
+      }
+      updateBadge();
+    }
+    logoutBtn.addEventListener('click', ()=>{
+      staff = false;
+      sessionStorage.removeItem('cbh_staff');
+      applyStaffUI();
+      toast('Abgemeldet.');
+    });
+
+    // First run
+    if(!load('cbh_seen_v4', false)){
+      pushMsg('bot','Willkommen! ✨ Ich bin dein Chrombook-Helfer. Stell mir Fragen zu Linux, Apps, Leistung & mehr. Wenn ich nicht weiterweiß, verweise ich dich an einen Mitarbeiter. 🤝');
+      save('cbh_seen_v4', true);
+    }
+    renderChat();
+    applyStaffUI();
+    updateBadge();
+
+    // Focus input for convenience
+    setTimeout(()=> input.focus(), 200);
+  });
   </script>
 </body>
 </html>
